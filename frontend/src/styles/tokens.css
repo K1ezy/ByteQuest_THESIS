@@ -1,0 +1,46 @@
+/* ==========================================================================
+   BYTEQUEST DESIGN TOKENS (Strict 60-30-10 Material Design 3 / M5)
+   60% Dominant: #0b0d14 (Canvas), #131722 (Panels), #1a2030 (Cards)
+   30% Structural: #262d42 (Borders), #f0f2f8 (Headings), #8c93b0 (Text)
+   10% Accent: #00e5a3 (Emerald Mint), #ff3366 (Error), #ffb703 (Crown/XP), #00b4d8 (Info)
+   ========================================================================== */
+:root {
+  /* 60% Canvas & Panel Surfaces */
+  --bg-canvas: #0b0d14;
+  --bg-panel: #131722;
+  --bg-surface-raised: #1a2030;
+  --bg-surface-elevated: #222a3f;
+  --bg-code: #07090e;
+
+  /* 30% Structural Borders & Typography */
+  --border-subtle: #1c2235;
+  --border-default: #262d42;
+  --border-focus: #3d4766;
+  --text-high: #f0f2f8;
+  --text-medium: #8c93b0;
+  --text-faint: #565d78;
+
+  /* 10% High-Intent Accent Tokens */
+  --accent-primary: #00e5a3;
+  --accent-glow: rgba(0, 229, 163, 0.22);
+  --accent-glow-subtle: rgba(0, 229, 163, 0.10);
+  --accent-hover: #05f5b0;
+  
+  /* Status Indicators */
+  --state-error: #ff3366;
+  --state-error-glow: rgba(255, 51, 102, 0.22);
+  --state-warning: #ffb703;
+  --state-info: #00b4d8;
+  --state-crown: #ffb703;
+
+  /* Geometry & Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 16px var(--accent-glow);
+}

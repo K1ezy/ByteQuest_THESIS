@@ -1,0 +1,29 @@
+# Environment & API Keys
+.env
+.env.local
+*.key
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Node
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database & IDE
+*.db
+*.sqlite
+*.sqlite3
+.vscode/
+.idea/
+.DS_Store

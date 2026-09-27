@@ -1,0 +1,18 @@
+FROM ubuntu:22.04
+
+# Hardened unprivileged sandbox container for student code execution
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    g++ \
+    default-jdk \
+    coreutils \
+    time \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -s /bin/bash sandboxuser
+USER sandboxuser
+WORKDIR /home/sandboxuser
+
+COPY run_test.sh /home/sandboxuser/run_test.sh
+
+ENTRYPOINT ["/bin/bash", "/home/sandboxuser/run_test.sh"]
