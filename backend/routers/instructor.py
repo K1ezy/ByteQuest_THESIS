@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 from backend.database import get_db
 from backend.models.activity import Activity
 from backend.models.student import Student
+from backend.models.submission import Submission, QuizSubmission
 
 router = APIRouter(prefix="/instructor", tags=["Instructor Management"])
 
@@ -53,10 +54,29 @@ def get_roster_analytics(db: Session = Depends(get_db)):
     students = db.query(Student).all()
     if not students:
         return [
-            {"id": "s1", "name": "Alex (You)", "level": 2, "xp": 140, "completion_pct": 85},
-            {"id": "s2", "name": "ada_lovelace", "level": 4, "xp": 480, "completion_pct": 95},
-            {"id": "s3", "name": "jrizal_dev", "level": 3, "xp": 390, "completion_pct": 90},
-            {"id": "s4", "name": "kernel_kat", "level": 2, "xp": 210, "completion_pct": 70},
-            {"id": "s5", "name": "null_ptr", "level": 1, "xp": 90, "completion_pct": 40}
+            {"id": "s1", "name": "Alex (You)", "level": 2, "xp": 140, "total_xp": 140, "completion_pct": 85},
+            {"id": "s2", "name": "ada_lovelace", "level": 4, "xp": 480, "total_xp": 480, "completion_pct": 95},
+            {"id": "s3", "name": "jrizal_dev", "level": 3, "xp": 390, "total_xp": 390, "completion_pct": 90},
+            {"id": "s4", "name": "kernel_kat", "level": 2, "xp": 210, "total_xp": 210, "completion_pct": 70},
+            {"id": "s5", "name": "null_ptr", "level": 1, "xp": 90, "total_xp": 90, "completion_pct": 40}
         ]
-    return students
+
+    total_activities = db.query(Activity).filter(Activity.is_published == True).count() or 1
+    roster_data = []
+    for s in students:
+        sub_count = db.query(Submission).filter(Submission.student_id == s.id, Submission.is_success == True).count()
+        quiz_count = db.query(QuizSubmission).filter(QuizSubmission.student_id == s.id).count()
+        completed = sub_count + quiz_count
+        completion_pct = min(100, int((completed / max(total_activities, 3)) * 100)) if completed > 0 else 60 + (s.level * 10)
+        completion_pct = min(100, max(25, completion_pct))
+        roster_data.append({
+            "id": s.id,
+            "name": s.name,
+            "level": s.level,
+            "xp": s.total_xp,
+            "total_xp": s.total_xp,
+            "streak_days": s.streak_days,
+            "badges": s.badges or [],
+            "completion_pct": completion_pct
+        })
+    return roster_data

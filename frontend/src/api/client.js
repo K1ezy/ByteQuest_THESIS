@@ -84,6 +84,17 @@ export const apiClient = {
     }
   },
 
+  async submitQuizResult(payload) {
+    const res = await fetch(`${API_BASE}/student/quiz-submit`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to record quiz results');
+    return await res.json();
+  },
+
+
   async getActivities(subject = 'cpp') {
     const res = await fetch(`${API_BASE}/student/activities/${subject}`);
     if (!res.ok) throw new Error('Failed to fetch activities');

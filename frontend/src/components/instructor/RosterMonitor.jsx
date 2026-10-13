@@ -48,13 +48,13 @@ export default function RosterMonitor({ roster = [], onSimulateAttempt }) {
             <tr key={s.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
               <td style={{ padding: '10px', fontWeight: 600, color: 'var(--text-high)' }}>{s.name}</td>
               <td style={{ padding: '10px', fontFamily: 'JetBrains Mono', color: 'var(--state-info)' }}>Lv.{s.level || 1}</td>
-              <td style={{ padding: '10px', fontFamily: 'JetBrains Mono', color: 'var(--accent-primary)' }}>{s.xp || 140} XP</td>
+              <td style={{ padding: '10px', fontFamily: 'JetBrains Mono', color: 'var(--accent-primary)' }}>{s.total_xp ?? s.xp ?? 140} XP</td>
               <td style={{ padding: '10px', width: '180px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ flex: 1, height: '6px', background: 'var(--bg-canvas)', borderRadius: '999px', overflow: 'hidden' }}>
-                    <div style={{ width: `${s.completion_pct || 75}%`, height: '100%', background: 'var(--accent-primary)' }} />
+                    <div style={{ width: `${s.completion_pct ?? 75}%`, height: '100%', background: 'var(--accent-primary)' }} />
                   </div>
-                  <span style={{ fontSize: '10.5px', fontFamily: 'JetBrains Mono', color: 'var(--text-faint)' }}>{s.completion_pct || 75}%</span>
+                  <span style={{ fontSize: '10.5px', fontFamily: 'JetBrains Mono', color: 'var(--text-faint)' }}>{s.completion_pct ?? 75}%</span>
                 </div>
               </td>
               <td style={{ padding: '10px', textAlign: 'right' }}>

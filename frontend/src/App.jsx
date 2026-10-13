@@ -22,6 +22,7 @@ export default function App() {
   const [role, setRole] = useState('student'); // 'student' | 'instructor' | 'ml_dashboard'
   const [subject, setSubject] = useState('cpp'); // 'cpp' | 'python' | 'java'
   const [activeTab, setActiveTab] = useState('quiz'); // 'quiz' | 'study' | 'challenge'
+  const [activeChallengeIndex, setActiveChallengeIndex] = useState(0);
 
   const [studentProfile, setStudentProfile] = useState({
     id: 'std_001_alex',
@@ -52,8 +53,10 @@ export default function App() {
 
   // Load activities when subject changes
   useEffect(() => {
+    setActiveChallengeIndex(0);
     loadActivities(subject);
   }, [subject]);
+
 
   // Initial data load
   useEffect(() => {
@@ -200,7 +203,8 @@ export default function App() {
     setCompilationError(null);
     setTestResults([]);
 
-    const activeCh = activities.challenges?.[0];
+    const currentChallenges = activities.challenges || [];
+    const activeCh = currentChallenges[activeChallengeIndex] || currentChallenges[0];
     const testCases = activeCh?.test_cases || [{ input_data: '1->2->3', expected_output: '3->2->1', is_hidden: false }];
 
     try {
@@ -221,6 +225,12 @@ export default function App() {
       if (res.passed_all) {
         setStudentProfile(prev => ({ ...prev, total_xp: prev.total_xp + 50 }));
       }
+
+      // Automatically refresh live telemetry feature records in the ML dashboard
+      try {
+        const featData = await apiClient.getTelemetryFeatures();
+        setFeatures(featData);
+      } catch {}
     } catch {
       // Offline fallback simulation
       setTestResults([
@@ -238,6 +248,7 @@ export default function App() {
       setIsEvaluating(false);
     }
   };
+
 
   const handleTrainModels = async () => {
     setIsTraining(true);
@@ -294,8 +305,34 @@ export default function App() {
                   <QuizRunner
                     questions={activities.quizzes}
                     subject={subject}
-                    onCompleteQuiz={(qResult) => {
-                      setStudentProfile(prev => ({ ...prev, total_xp: prev.total_xp + 25 }));
+                    onCompleteQuiz={async (qResult) => {
+                      try {
+                        const res = await apiClient.submitQuizResult({
+                          student_id: studentProfile.id,
+                          subject,
+                          concept: activities.quizzes?.[0]?.concept || 'General',
+                          total_questions: qResult.totalQuestions,
+                          correct_count: qResult.correctCount,
+                          accuracy: qResult.accuracy,
+                          time_spent_seconds: qResult.timeSpentSeconds
+                        });
+                        if (res.total_xp) {
+                          setStudentProfile(prev => ({
+                            ...prev,
+                            total_xp: res.total_xp,
+                            level: res.level,
+                            badges: res.badges || prev.badges
+                          }));
+                        } else {
+                          setStudentProfile(prev => ({ ...prev, total_xp: prev.total_xp + 25 }));
+                        }
+                        // Refresh live telemetry features in ML table
+                        const featData = await apiClient.getTelemetryFeatures();
+                        setFeatures(featData);
+                      } catch (err) {
+                        console.warn('Quiz submission offline fallback:', err);
+                        setStudentProfile(prev => ({ ...prev, total_xp: prev.total_xp + 25 }));
+                      }
                     }}
                   />
                 )}
@@ -319,22 +356,79 @@ export default function App() {
 
                 {activeTab === 'challenge' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Challenge Selector Tabs if Multiple Challenges Exist */}
+                    {activities.challenges?.length > 1 && (
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        background: 'var(--bg-panel)',
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-default)',
+                        alignItems: 'center',
+                        overflowX: 'auto'
+                      }}>
+                        <span style={{ fontSize: '10.5px', fontFamily: 'JetBrains Mono', color: 'var(--text-faint)', textTransform: 'uppercase', marginRight: '6px' }}>
+                          Curriculum Tasks ({activities.challenges.length}):
+                        </span>
+                        {activities.challenges.map((ch, idx) => (
+                          <button
+                            key={ch.id || idx}
+                            onClick={() => {
+                              setActiveChallengeIndex(idx);
+                              setTestResults([]);
+                              setCompilationError(null);
+                              setAiFeedback(null);
+                            }}
+                            style={{
+                              padding: '5px 12px',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: '11.5px',
+                              fontWeight: 600,
+                              border: `1px solid ${activeChallengeIndex === idx ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+                              background: activeChallengeIndex === idx ? 'rgba(0, 229, 163, 0.12)' : 'var(--bg-surface-raised)',
+                              color: activeChallengeIndex === idx ? 'var(--accent-primary)' : 'var(--text-medium)',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            #{idx + 1} {ch.title || `Challenge ${idx + 1}`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Challenge Prompt Header */}
                     <div style={{
                       background: 'var(--bg-panel)',
                       border: '1px solid var(--border-default)',
                       borderRadius: 'var(--radius-md)',
-                      padding: '16px'
+                      padding: '18px'
                     }}>
-                      <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 6px 0', color: 'var(--text-high)' }}>
-                        {activities.challenges?.[0]?.title || 'Reverse a Singly Linked List'}
-                      </h3>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--text-high)' }}>
+                          {activities.challenges?.[activeChallengeIndex]?.title || activities.challenges?.[0]?.title || 'Programming Challenge'}
+                        </h3>
+                        <span style={{
+                          fontSize: '10px',
+                          fontFamily: 'JetBrains Mono',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border-default)',
+                          background: 'var(--bg-canvas)',
+                          color: 'var(--state-info)',
+                          textTransform: 'uppercase'
+                        }}>
+                          {activities.challenges?.[activeChallengeIndex]?.difficulty || 'Medium'} Difficulty
+                        </span>
+                      </div>
                       <p style={{ fontSize: '12.5px', color: 'var(--text-medium)', margin: 0, lineHeight: 1.5 }}>
-                        {activities.challenges?.[0]?.prompt}
+                        {activities.challenges?.[activeChallengeIndex]?.prompt || activities.challenges?.[0]?.prompt}
                       </p>
                     </div>
 
                     <CodeEditor
-                      challenge={activities.challenges?.[0]}
+                      challenge={activities.challenges?.[activeChallengeIndex] || activities.challenges?.[0]}
                       language={subject}
                       onRunTests={handleRunTests}
                       isEvaluating={isEvaluating}
@@ -347,6 +441,7 @@ export default function App() {
                     />
                   </div>
                 )}
+
               </div>
 
               {/* Right Column: Gamification & Stats */}

@@ -1,12 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, Body, Header
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
+import uuid
 from backend.database import get_db
 from backend.models.student import Student
 from backend.models.activity import Activity
+from backend.models.submission import QuizSubmission
 from backend.services.gemini_service import gemini_service
 from backend.services.adaptive_engine import adaptive_engine
 from backend.services.study_session import get_lecture_session, build_bytebot_system_instruction
+
+class QuizSubmitRequest(BaseModel):
+    student_id: str = "std_001_alex"
+    subject: str = "cpp"
+    concept: Optional[str] = "General"
+    total_questions: int
+    correct_count: int
+    accuracy: float
+    time_spent_seconds: int = 0
+
 
 router = APIRouter(prefix="/student", tags=["Student Activities"])
 
@@ -125,3 +138,49 @@ def get_adaptive_next_activity(
 
     rec = adaptive_engine.recommend_next_activity(student_id, stats, available_dicts)
     return rec
+
+@router.post("/quiz-submit")
+def submit_quiz_result(payload: QuizSubmitRequest, db: Session = Depends(get_db)):
+    """
+    Persists student practice quiz results to SQLite database,
+    updates XP and badges, and registers empirical telemetry for ML features.
+    """
+    quiz_sub = QuizSubmission(
+        id=f"qsub_{uuid.uuid4().hex[:8]}",
+        student_id=payload.student_id,
+        subject=payload.subject,
+        concept=payload.concept,
+        total_questions=payload.total_questions,
+        correct_count=payload.correct_count,
+        accuracy=round(payload.accuracy, 3),
+        time_spent_seconds=payload.time_spent_seconds
+    )
+    db.add(quiz_sub)
+
+    # Award XP to student profile
+    student = db.query(Student).filter(Student.id == payload.student_id).first()
+    earned_xp = int(payload.correct_count * 15 + 10)
+    current_badges = []
+    if student:
+        student.total_xp += earned_xp
+        # Recalculate level (every 100 XP is a level)
+        student.level = max(1, (student.total_xp // 100) + 1)
+        current_badges = list(student.badges or [])
+        if payload.accuracy >= 0.8 and "quiz_ace" not in current_badges:
+            current_badges.append("quiz_ace")
+            student.badges = current_badges
+
+    db.commit()
+    if student:
+        db.refresh(student)
+
+    return {
+        "status": "success",
+        "quiz_submission_id": quiz_sub.id,
+        "accuracy": payload.accuracy,
+        "xp_awarded": earned_xp,
+        "total_xp": student.total_xp if student else earned_xp,
+        "level": student.level if student else 1,
+        "badges": current_badges
+    }
+

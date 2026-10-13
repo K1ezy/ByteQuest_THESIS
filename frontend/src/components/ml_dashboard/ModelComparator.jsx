@@ -1,4 +1,5 @@
 import React from 'react';
+import { apiClient } from '../../api/client';
 
 export default function ModelComparator({ comparisonData, onTrainModels, isTraining = false }) {
   const lr = comparisonData?.logistic_regression;
@@ -144,11 +145,11 @@ function InferenceSimulator() {
   const runPrediction = async () => {
     setIsPredicting(true);
     try {
-      const { apiClient } = await import('../../api/client');
       const res = await apiClient.predictStudentSuccess({
         prior_quiz_accuracy: accuracy / 100,
         avg_solve_time_seconds: Number(solveTime),
         compilation_error_count: Number(compileErrors),
+        attempts_before_success: 1,
         hints_requested_count: Number(hints),
         task_difficulty_level: Number(difficulty)
       });

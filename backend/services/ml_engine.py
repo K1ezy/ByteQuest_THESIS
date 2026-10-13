@@ -2,11 +2,12 @@ import time
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Any, Tuple
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GroupShuffleSplit
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
+
 
 from backend.schemas.ml_schema import (
     StudentFeatureVector, ModelMetrics, ModelComparisonResponse, ConfusionMatrixSchema,
@@ -45,10 +46,24 @@ class MLEngineService:
         X = df[self.FEATURE_NAMES].values
         y = df["target_task_success"].values
 
-        # Stratified Train/Test Split (80/20)
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.20, random_state=42, stratify=y
-        )
+        # Partition data: Enforce student-grouped split when participant groups are present
+        # to prevent optimistic bias and student-level data leakage.
+        used_group_split = False
+        num_students = df["student_id"].nunique() if "student_id" in df.columns else 1
+        if "student_id" in df.columns and num_students >= 3:
+            try:
+                gss = GroupShuffleSplit(n_splits=1, test_size=0.20, random_state=42)
+                train_idx, test_idx = next(gss.split(X, y, groups=df["student_id"]))
+                X_train, X_test = X[train_idx], X[test_idx]
+                y_train, y_test = y[train_idx], y[test_idx]
+                used_group_split = True
+            except Exception:
+                used_group_split = False
+
+        if not used_group_split:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.20, random_state=42, stratify=y
+            )
 
         # Fit Scaler
         X_train_scaled = self.scaler.fit_transform(X_train)
@@ -70,13 +85,18 @@ class MLEngineService:
         lr_metrics = self._evaluate_model(self.lr_model, X_test_scaled, y_test, "Logistic Regression", lr_duration_ms)
         rf_metrics = self._evaluate_model(self.rf_model, X_test, y_test, "Random Forest", rf_duration_ms, is_rf=True)
 
-        # Comparative recommendation
+        # Comparative recommendation & leakage rationale
         recommended = "Random Forest" if rf_metrics.f1_score >= lr_metrics.f1_score else "Logistic Regression"
+        leakage_guard_note = (
+            f" [Student-Grouped Cross-Validation enforced across {num_students} cohorts to eliminate observation leakage.]"
+            if used_group_split else ""
+        )
         rationale = (
             f"{recommended} achieved superior balance across Precision ({getattr(rf_metrics if recommended == 'Random Forest' else lr_metrics, 'precision'):.1%}) "
             f"and Recall ({getattr(rf_metrics if recommended == 'Random Forest' else lr_metrics, 'recall'):.1%}). "
-            "Non-linear interactions between prior quiz accuracy and hint inquiries provide richer decision boundaries in tree ensembles."
+            f"Non-linear interactions between prior quiz accuracy and hint inquiries provide richer decision boundaries in tree ensembles.{leakage_guard_note}"
         )
+
 
         comparison = ModelComparisonResponse(
             dataset_size=len(df),

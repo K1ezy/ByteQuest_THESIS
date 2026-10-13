@@ -240,7 +240,7 @@ def verify_gemini_key(payload: Dict[str, str] = Body(...)):
 
         # 2. Build candidate list prioritizing discovered models
         candidates = []
-        for pref in ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3-flash", "gemini-2.0-flash-exp"]:
+        for pref in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-pro", "gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3-flash", "gemini-2.0-flash-exp"]:
             for d in discovered_models:
                 if pref in d and d not in candidates:
                     candidates.append(d)
@@ -250,7 +250,7 @@ def verify_gemini_key(payload: Dict[str, str] = Body(...)):
                 candidates.append(d)
 
         # Defaults if listing returned no gemini models
-        for default_m in [settings.GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-3.5-flash-lite", "gemini-3.8-flash"]:
+        for default_m in [settings.GEMINI_MODEL, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-pro", "gemini-3.5-flash-lite", "gemini-3.8-flash"]:
             if default_m not in candidates:
                 candidates.append(default_m)
 
